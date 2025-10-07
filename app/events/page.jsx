@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import EventCard from '@/components/EventCard';
 
-const EventsPage = () => {
+/* ----------  Client component that actually uses the hook ---------- */
+function EventsPageContent() {
   const searchParams = useSearchParams();
   const tagQuery = searchParams.get('tag');
 
@@ -15,20 +16,19 @@ const EventsPage = () => {
     const fetchEvents = async () => {
       setLoading(true);
       try {
-        const response = await fetch('https://qevent-backend.labs.crio.do/events');
-        const eventData = await response.json();
+        const res = await fetch('https://qevent-backend.labs.crio.do/events');
+        const data = await res.json();
 
-        const filteredEvents = tagQuery
-          ? eventData.filter(
-              event =>
-                Array.isArray(event.tags) &&
-                event.tags.includes(tagQuery)
+        const filtered = tagQuery
+          ? data.filter(
+              (event) =>
+                Array.isArray(event.tags) && event.tags.includes(tagQuery)
             )
-          : eventData;
+          : data;
 
-        setEvents(filteredEvents);
-      } catch (error) {
-        console.error('Failed to fetch events:', error);
+        setEvents(filtered);
+      } catch (err) {
+        console.error('Failed to fetch events:', err);
         setEvents([]);
       } finally {
         setLoading(false);
@@ -49,14 +49,29 @@ const EventsPage = () => {
   return (
     <div className="flex flex-wrap justify-around mt-8 mb-32 gap-4">
       {events.length > 0 ? (
-        events.map(event => (
+        events.map((event) => (
           <EventCard key={event.id} eventData={event} />
         ))
       ) : (
-        <p className="text-center text-gray-500 w-full">No events found for tag: {tagQuery}</p>
+        <p className="text-center text-gray-500 w-full">
+          No events found{tagQuery ? ` for tag: ${tagQuery}` : ''}.
+        </p>
       )}
     </div>
   );
-};
+}
 
-export default EventsPage;
+/* ----------  Page entry point wrapped in Suspense ---------- */
+export default function EventsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center h-64">
+          Loading events...
+        </div>
+      }
+    >
+      <EventsPageContent />
+    </Suspense>
+  );
+}
